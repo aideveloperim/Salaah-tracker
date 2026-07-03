@@ -184,22 +184,75 @@
   .history-body { display: none; }
   .history-body.open { display: block; }
 
-  .history-day {
-    border-bottom: 1px solid var(--border);
+  .calendar-month-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 12px 16px 0;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
     padding: 10px 16px;
   }
-  .history-day:last-child { border-bottom: none; }
-  .history-day-header {
+  .calendar-dow {
+    text-align: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 2px;
+  }
+  .calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f1ede4;
+    color: var(--text);
+    border: 2px solid transparent;
+  }
+  .calendar-day.empty { background: none; cursor: default; }
+  .calendar-day.complete { background: #d4edda; color: var(--prayed); }
+  .calendar-day.incomplete { background: #f8d7da; color: var(--missed); }
+  .calendar-day.today { border-color: var(--gold); }
+  .calendar-day.selected { outline: 3px solid var(--green); outline-offset: 1px; }
+
+  .calendar-legend {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+    padding: 0 16px 10px;
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .legend-dot.complete { background: var(--prayed); }
+  .legend-dot.incomplete { background: var(--missed); }
+
+  .history-detail {
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+  }
+  .history-detail-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 6px;
   }
-  .history-day-date { font-weight: 600; font-size: 0.8rem; }
-  .history-day-score {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
+  .history-detail-date { font-weight: 700; font-size: 0.85rem; }
+  .history-detail-score { font-size: 0.75rem; color: var(--muted); }
   .history-pills { display: flex; gap: 4px; flex-wrap: wrap; }
   .pill {
     font-size: 0.6rem;
@@ -212,6 +265,12 @@
   .pill.missed { background: #f8d7da; color: var(--missed); }
   .pill.pending { background: #e9ecef; color: var(--pending); }
   .pill.auto { background: #fff3cd; color: #856404; }
+  button.pill {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button.pill:hover { filter: brightness(0.93); }
 
   /* notification */
   .toast {
@@ -291,7 +350,15 @@
     <div class="history-head" onclick="toggleHistory()">
       📅 Prayer History <span id="history-toggle">▼ Show</span>
     </div>
-    <div class="history-body" id="history-body"></div>
+    <div class="history-body" id="history-body">
+      <div class="calendar-month-label">July 2026</div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <div class="calendar-legend">
+        <span><span class="legend-dot complete"></span>Complete</span>
+        <span><span class="legend-dot incomplete"></span>Incomplete</span>
+      </div>
+      <div class="history-detail" id="history-detail"></div>
+    </div>
   </div>
 
 </div>
@@ -350,6 +417,7 @@ const MASJID_RADIUS_METERS = 5;
 let prayerLog = JSON.parse(localStorage.getItem("salah_log_july2026") || "{}");
 // prayerLog[day][prayer] = "prayed" | "auto" | "missed" | null
 let geoEnabled = localStorage.getItem("salah_geo") === "true";
+let selectedHistoryDay = null;
 let geoWatcher = null;
 let userLat = null, userLng = null;
 
@@ -421,6 +489,8 @@ function calcStats() {
     }
   }
 
+  // Qadha = occurred prayers not yet prayed — still outstanding.
+  // As soon as one is ticked, it moves into totalPrayed and drops out of here.
   const totalQadha = totalOccurred - totalPrayed;
   return { totalOccurred, totalPrayed, totalQadha };
 }
@@ -469,6 +539,8 @@ function renderToday() {
     if (status === "prayed") { btnClass += " prayed"; btnContent = "✓"; }
     else if (status === "auto") { btnClass += " auto"; btnContent = "✓"; }
 
+    const title = status === "auto" ? "Auto-detected at masjid" : "";
+
     row.innerHTML = `
       <span style="font-size:1.2rem">${PRAYER_ICONS[p]}</span>
       <span class="prayer-name">${p}</span>
@@ -476,7 +548,7 @@ function renderToday() {
         ${timeStr}
         <span class="time-label">Jamaat</span>
       </div>
-      <button class="${btnClass}" onclick="togglePrayer(${day},'${p}')" title="${status === 'auto' ? 'Auto-detected at masjid' : ''}">
+      <button class="${btnClass}" onclick="togglePrayer(${day},'${p}')" title="${title}">
         ${btnContent}
       </button>
     `;
@@ -500,55 +572,96 @@ function togglePrayer(day, prayer) {
 }
 
 // ─── History ───────────────────────────────────────────────────────────────────
-function renderHistory() {
-  const body = document.getElementById("history-body");
-  if (!body.classList.contains("open")) return;
+// Status of a given day: "future" (no prayers due yet), "complete" (all 5 prayed),
+// or "incomplete" (at least one occurred prayer missed).
+function dayStatus(d) {
+  const times = JULY_JAMAAT[d];
+  if (!times) return "future";
+  let occurred = 0, done = 0;
+  for (const p of PRAYERS) {
+    if (hasPassed(d, p)) {
+      occurred++;
+      const s = prayerLog[d]?.[p];
+      if (s === "prayed" || s === "auto") done++;
+    }
+  }
+  if (occurred === 0) return "future";
+  if (occurred === PRAYERS.length && done === occurred) return "complete";
+  return "incomplete";
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("calendar-grid");
+  grid.innerHTML = "";
+
+  ["S","M","T","W","T","F","S"].forEach(n => {
+    const el = document.createElement("div");
+    el.className = "calendar-dow";
+    el.textContent = n;
+    grid.appendChild(el);
+  });
+
+  const firstDow = new Date(2026, 6, 1).getDay();
+  for (let i = 0; i < firstDow; i++) {
+    const el = document.createElement("div");
+    el.className = "calendar-day empty";
+    grid.appendChild(el);
+  }
 
   const today = todayDay();
   const month = todayMonth();
-  body.innerHTML = "";
-
-  const days = [];
   for (let d = 1; d <= 31; d++) {
-    if (month === 6 && d > today) break;
-    if (month < 6) break;
-    days.push(d);
+    const el = document.createElement("div");
+    el.className = "calendar-day " + dayStatus(d);
+    if (month === 6 && d === today) el.classList.add("today");
+    if (d === selectedHistoryDay) el.classList.add("selected");
+    el.textContent = d;
+    el.onclick = () => { selectedHistoryDay = d; renderHistory(); };
+    grid.appendChild(el);
   }
-  if (days.length === 0) {
-    body.innerHTML = `<div class="history-day" style="color:var(--muted);font-size:0.8rem">No history yet — prayers will appear here.</div>`;
+}
+
+function renderHistoryDetail() {
+  const detail = document.getElementById("history-detail");
+  const d = selectedHistoryDay;
+  const times = JULY_JAMAAT[d];
+  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const dateObj = new Date(2026, 6, d);
+  const dayName = dayNames[dateObj.getDay()];
+
+  if (!times) {
+    detail.innerHTML = `<div style="color:var(--muted);font-size:0.8rem">No timetable data for this date.</div>`;
     return;
   }
 
-  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  for (const d of days.slice().reverse()) {
-    const times = JULY_JAMAAT[d];
-    if (!times) continue;
-    const dateObj = new Date(2026, 6, d);
-    const dayName = dayNames[dateObj.getDay()];
+  let done = 0, total = 0;
+  const pills = PRAYERS.map(p => {
+    if (!hasPassed(d, p)) return `<span class="pill pending">${p}</span>`;
+    total++;
+    const s = prayerLog[d]?.[p];
+    if (s === "prayed") { done++; return `<button class="pill prayed" onclick="togglePrayer(${d},'${p}')">${p}</button>`; }
+    if (s === "auto") { done++; return `<button class="pill auto" onclick="togglePrayer(${d},'${p}')">${p} 📍</button>`; }
+    return `<button class="pill missed" onclick="togglePrayer(${d},'${p}')">${p}</button>`;
+  });
 
-    let prayed = 0, total = 0;
-    const pills = PRAYERS.map(p => {
-      const passed = hasPassed(d, p);
-      if (!passed && d === today) return null;
-      if (!passed && d < today) { total++; return `<span class="pill missed">${p}</span>`; }
-      total++;
-      const s = prayerLog[d]?.[p];
-      if (s === "prayed") { prayed++; return `<span class="pill prayed">${p}</span>`; }
-      if (s === "auto") { prayed++; return `<span class="pill auto">${p} 📍</span>`; }
-      return `<span class="pill missed">${p}</span>`;
-    }).filter(Boolean);
+  const scoreText = total > 0 ? `${done}/${total}` : "Not yet due";
 
-    const div = document.createElement("div");
-    div.className = "history-day";
-    div.innerHTML = `
-      <div class="history-day-header">
-        <span class="history-day-date">${dayName} ${d} Jul</span>
-        <span class="history-day-score">${prayed}/${total}</span>
-      </div>
-      <div class="history-pills">${pills.join("")}</div>
-    `;
-    body.appendChild(div);
-  }
+  detail.innerHTML = `
+    <div class="history-detail-header">
+      <span class="history-detail-date">${dayName} ${d} Jul</span>
+      <span class="history-detail-score">${scoreText}</span>
+    </div>
+    <div class="history-pills">${pills.join("")}</div>
+    <div style="font-size:0.65rem;color:var(--muted);margin-top:8px;">Tap a missed prayer to mark it as prayed — it comes off the Qadha count.</div>
+  `;
+}
+
+function renderHistory() {
+  const body = document.getElementById("history-body");
+  if (!body.classList.contains("open")) return;
+  if (selectedHistoryDay === null) selectedHistoryDay = todayDay();
+  renderCalendar();
+  renderHistoryDetail();
 }
 
 function toggleHistory() {
