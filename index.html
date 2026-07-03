@@ -36,6 +36,34 @@
 
   .container { max-width: 480px; margin: 0 auto; padding: 16px; }
 
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 4px;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
   /* Dashboard */
   .dashboard {
     display: grid;
@@ -162,6 +190,52 @@
     color: var(--green);
   }
 
+  /* Lifetime Qadha */
+  .qadha-lifetime-desc {
+    padding: 10px 16px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .qadha-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .qadha-row:last-child { border-bottom: none; }
+  .qadha-input {
+    width: 54px;
+    padding: 5px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    text-align: center;
+    font-family: inherit;
+  }
+  .qadha-remaining {
+    flex: 1;
+    text-align: center;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--missed);
+  }
+  .qadha-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .qadha-btn.plus { border-color: var(--prayed); color: var(--prayed); }
+  .qadha-btn.plus:disabled { opacity: 0.35; cursor: default; }
+  .qadha-btn.minus { border-color: var(--missed); color: var(--missed); }
+  .qadha-btn.minus:disabled { opacity: 0.35; cursor: default; }
+
   /* History */
   .history-wrap {
     background: var(--card);
@@ -179,10 +253,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
   }
-  .history-body { display: none; }
-  .history-body.open { display: block; }
 
   .calendar-month-label {
     text-align: center;
@@ -307,57 +378,77 @@
   <p>Masjid Adam, Bolton — July 2026</p>
 </header>
 
+<div class="tab-bar">
+  <button class="tab-btn" data-tab="today" onclick="switchTab('today')">🕌 Today</button>
+  <button class="tab-btn" data-tab="history" onclick="switchTab('history')">📅 History</button>
+  <button class="tab-btn" data-tab="qadha" onclick="switchTab('qadha')">⏱️ Qadha</button>
+</div>
+
 <div class="container">
 
-  <!-- Dashboard stats -->
-  <div class="dashboard">
-    <div class="stat-card">
-      <div class="number" id="stat-prayed">0</div>
-      <div class="label">Prayed</div>
-    </div>
-    <div class="stat-card" style="border-color:#e8b4b0;">
-      <div class="number" id="stat-qadha" style="color:#c0392b;">0</div>
-      <div class="label">Qadha</div>
-    </div>
-    <div class="stat-card highlight">
-      <div class="number" id="stat-pct">0%</div>
-      <div class="label">Rate</div>
-    </div>
-  </div>
-
-  <div class="progress-bar-wrap">
-    <div class="bar-label">
-      <span>Overall Progress</span>
-      <span id="bar-label-right">0 / 0 prayers</span>
-    </div>
-    <div class="bar-track">
-      <div class="bar-fill" id="progress-bar" style="width:0%"></div>
-    </div>
-  </div>
-
-  <!-- Today -->
-  <div class="section-title">Today — <span id="today-label"></span></div>
-  <div class="today-card">
-    <div class="today-header">
-      <span>Jamaat Times</span>
-      <span class="geo-badge" id="geo-btn" onclick="toggleGeo()">📍 Location Off</span>
-    </div>
-    <div id="today-prayers"></div>
-  </div>
-
-  <!-- History -->
-  <div class="history-wrap">
-    <div class="history-head" onclick="toggleHistory()">
-      📅 Prayer History <span id="history-toggle">▼ Show</span>
-    </div>
-    <div class="history-body" id="history-body">
-      <div class="calendar-month-label">July 2026</div>
-      <div class="calendar-grid" id="calendar-grid"></div>
-      <div class="calendar-legend">
-        <span><span class="legend-dot complete"></span>Complete</span>
-        <span><span class="legend-dot incomplete"></span>Incomplete</span>
+  <!-- Today tab -->
+  <div class="tab-panel" id="tab-today">
+    <div class="dashboard">
+      <div class="stat-card">
+        <div class="number" id="stat-prayed">0</div>
+        <div class="label">Prayed</div>
       </div>
-      <div class="history-detail" id="history-detail"></div>
+      <div class="stat-card" style="border-color:#e8b4b0;">
+        <div class="number" id="stat-qadha" style="color:#c0392b;">0</div>
+        <div class="label">Qadha</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="number" id="stat-pct">0%</div>
+        <div class="label">Rate</div>
+      </div>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="bar-label">
+        <span>Overall Progress</span>
+        <span id="bar-label-right">0 / 0 prayers</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Today — <span id="today-label"></span></div>
+    <div class="today-card">
+      <div class="today-header">
+        <span>Jamaat Times</span>
+        <span class="geo-badge" id="geo-btn" onclick="toggleGeo()">📍 Location Off</span>
+      </div>
+      <div id="today-prayers"></div>
+    </div>
+  </div>
+
+  <!-- History tab -->
+  <div class="tab-panel" id="tab-history">
+    <div class="history-wrap">
+      <div class="history-head">📅 Prayer History</div>
+      <div class="history-body" id="history-body">
+        <div class="calendar-month-label">July 2026</div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="calendar-legend">
+          <span><span class="legend-dot complete"></span>Complete</span>
+          <span><span class="legend-dot incomplete"></span>Incomplete</span>
+        </div>
+        <div class="history-detail" id="history-detail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lifetime Qadha tab -->
+  <div class="tab-panel" id="tab-qadha">
+    <div class="history-wrap">
+      <div class="history-head">
+        <span>⏱️ Lifetime Qadha <span id="lifetime-remaining-badge" style="font-weight:400;font-size:0.7rem;opacity:0.85;"></span></span>
+      </div>
+      <div class="history-body" id="lifetime-body">
+        <div class="qadha-lifetime-desc">Enter how many of each prayer you owe from before you started tracking. Tick ✓ each time you make one up.</div>
+        <div id="lifetime-qadha-list"></div>
+      </div>
     </div>
   </div>
 
@@ -418,6 +509,16 @@ let prayerLog = JSON.parse(localStorage.getItem("salah_log_july2026") || "{}");
 // prayerLog[day][prayer] = "prayed" | "auto" | "missed" | null
 let geoEnabled = localStorage.getItem("salah_geo") === "true";
 let selectedHistoryDay = null;
+// lifetimeQadha[prayer] = { total, completed } — manually entered backlog, separate from this month's tracking
+let lifetimeQadha = JSON.parse(localStorage.getItem("salah_lifetime_qadha") || "{}");
+
+function saveLifetimeQadha() {
+  localStorage.setItem("salah_lifetime_qadha", JSON.stringify(lifetimeQadha));
+}
+function getLifetimeEntry(prayer) {
+  if (!lifetimeQadha[prayer]) lifetimeQadha[prayer] = { total: 0, completed: 0 };
+  return lifetimeQadha[prayer];
+}
 let geoWatcher = null;
 let userLat = null, userLng = null;
 
@@ -571,6 +672,59 @@ function togglePrayer(day, prayer) {
   renderAll();
 }
 
+// ─── Lifetime Qadha ─────────────────────────────────────────────────────────────
+function setLifetimeTotal(prayer, value) {
+  const entry = getLifetimeEntry(prayer);
+  entry.total = Math.max(0, parseInt(value, 10) || 0);
+  if (entry.completed > entry.total) entry.completed = entry.total;
+  saveLifetimeQadha();
+  renderLifetimeQadha();
+}
+
+function incrementLifetimeQadha(prayer) {
+  const entry = getLifetimeEntry(prayer);
+  if (entry.completed >= entry.total) return;
+  entry.completed++;
+  saveLifetimeQadha();
+  renderLifetimeQadha();
+  showToast(`${prayer} Qadha marked complete`);
+}
+
+function decrementLifetimeQadha(prayer) {
+  const entry = getLifetimeEntry(prayer);
+  if (entry.completed <= 0) return;
+  entry.completed--;
+  saveLifetimeQadha();
+  renderLifetimeQadha();
+}
+
+function renderLifetimeQadha() {
+  let totalRemaining = 0;
+  for (const p of PRAYERS) {
+    const entry = getLifetimeEntry(p);
+    totalRemaining += Math.max(0, entry.total - entry.completed);
+  }
+  document.getElementById("lifetime-remaining-badge").textContent =
+    totalRemaining > 0 ? `${totalRemaining} remaining` : "";
+
+  const list = document.getElementById("lifetime-qadha-list");
+  list.innerHTML = PRAYERS.map(p => {
+    const entry = getLifetimeEntry(p);
+    const remaining = Math.max(0, entry.total - entry.completed);
+    return `
+      <div class="qadha-row">
+        <span style="font-size:1.2rem">${PRAYER_ICONS[p]}</span>
+        <span class="prayer-name">${p}</span>
+        <input type="number" min="0" class="qadha-input" value="${entry.total}"
+               onchange="setLifetimeTotal('${p}', this.value)" title="Total owed">
+        <span class="qadha-remaining">${remaining}</span>
+        <button class="qadha-btn minus" onclick="decrementLifetimeQadha('${p}')" title="Undo" ${entry.completed <= 0 ? "disabled" : ""}>−</button>
+        <button class="qadha-btn plus" onclick="incrementLifetimeQadha('${p}')" title="Mark one complete" ${remaining <= 0 ? "disabled" : ""}>✓</button>
+      </div>
+    `;
+  }).join("");
+}
+
 // ─── History ───────────────────────────────────────────────────────────────────
 // Status of a given day: "future" (no prayers due yet), "complete" (all 5 prayed),
 // or "incomplete" (at least one occurred prayer missed).
@@ -657,19 +811,9 @@ function renderHistoryDetail() {
 }
 
 function renderHistory() {
-  const body = document.getElementById("history-body");
-  if (!body.classList.contains("open")) return;
   if (selectedHistoryDay === null) selectedHistoryDay = todayDay();
   renderCalendar();
   renderHistoryDetail();
-}
-
-function toggleHistory() {
-  const body = document.getElementById("history-body");
-  const toggle = document.getElementById("history-toggle");
-  body.classList.toggle("open");
-  toggle.textContent = body.classList.contains("open") ? "▲ Hide" : "▼ Show";
-  renderHistory();
 }
 
 // ─── Geolocation ───────────────────────────────────────────────────────────────
@@ -766,10 +910,20 @@ function showToast(msg) {
 function renderAll() {
   renderDashboard();
   renderToday();
+  renderLifetimeQadha();
   renderHistory();
 }
 
-renderAll();
+// ─── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".tab-panel").forEach(el => el.classList.remove("active"));
+  document.getElementById("tab-" + tab).classList.add("active");
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  localStorage.setItem("salah_active_tab", tab);
+  renderAll();
+}
+
+switchTab(localStorage.getItem("salah_active_tab") || "today");
 updateGeoBtn();
 
 if (geoEnabled && navigator.geolocation) {
