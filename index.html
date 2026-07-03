@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salah Tracker — July 2026</title>
+<style>
+  :root {
+    --green: #1a6b3c;
+    --gold: #c8a951;
+    --light-gold: #f0dfa0;
+    --bg: #f8f4ec;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --border: #e0d5c0;
+    --prayed: #1a6b3c;
+    --missed: #c0392b;
+    --pending: #95a5a6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--green);
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
+  header p { font-size: 0.8rem; opacity: 0.8; margin-top: 2px; }
+
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  /* Dashboard */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat-card .number { font-size: 1.8rem; font-weight: 800; color: var(--green); }
+  .stat-card .label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .stat-card.highlight .number { color: var(--gold); }
+
+  .progress-bar-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .progress-bar-wrap .bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .progress-bar-wrap .bar-label span:first-child { font-weight: 600; color: var(--text); }
+  .bar-track {
+    background: #e8e0d0;
+    border-radius: 99px;
+    height: 12px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), #2ecc71);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  /* Today section */
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .today-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .today-header {
+    background: var(--green);
+    color: white;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .geo-badge {
+    font-size: 0.65rem;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 99px;
+    cursor: pointer;
+  }
+  .geo-badge.active { background: rgba(255,255,255,0.4); }
+
+  .prayer-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    transition: background 0.15s;
+  }
+  .prayer-row:last-child { border-bottom: none; }
+  .prayer-row:hover { background: #f5f0e8; }
+
+  .prayer-name { font-weight: 600; font-size: 0.9rem; flex: 1; }
+  .prayer-time { font-size: 0.8rem; color: var(--muted); min-width: 52px; text-align: right; }
+  .prayer-time .time-label { font-size: 0.6rem; color: var(--gold); display: block; text-align: right; }
+
+  .tick-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .tick-btn.prayed {
+    background: var(--prayed);
+    border-color: var(--prayed);
+    color: white;
+  }
+  .tick-btn.auto {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: white;
+  }
+  .tick-btn:hover { transform: scale(1.1); }
+
+  .current-prayer { background: #f0f9f4 !important; }
+  .current-prayer .prayer-name::after {
+    content: " •";
+    color: var(--green);
+  }
+
+  /* History */
+  .history-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .history-head {
+    background: var(--gold);
+    color: white;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .history-body { display: none; }
+  .history-body.open { display: block; }
+
+  .history-day {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+  }
+  .history-day:last-child { border-bottom: none; }
+  .history-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .history-day-date { font-weight: 600; font-size: 0.8rem; }
+  .history-day-score {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .history-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pill {
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .pill.prayed { background: #d4edda; color: var(--prayed); }
+  .pill.missed { background: #f8d7da; color: var(--missed); }
+  .pill.pending { background: #e9ecef; color: var(--pending); }
+  .pill.auto { background: #fff3cd; color: #856404; }
+
+  /* notification */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  footer {
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--muted);
+    padding: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🕌 Salah Tracker</h1>
+  <p>Masjid Adam, Bolton — July 2026</p>
+</header>
+
+<div class="container">
+
+  <!-- Dashboard stats -->
+  <div class="dashboard">
+    <div class="stat-card">
+      <div class="number" id="stat-prayed">0</div>
+      <div class="label">Prayed</div>
+    </div>
+    <div class="stat-card" style="border-color:#e8b4b0;">
+      <div class="number" id="stat-qadha" style="color:#c0392b;">0</div>
+      <div class="label">Qadha</div>
+    </div>
+    <div class="stat-card highlight">
+      <div class="number" id="stat-pct">0%</div>
+      <div class="label">Rate</div>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="bar-label">
+      <span>Overall Progress</span>
+      <span id="bar-label-right">0 / 0 prayers</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- Today -->
+  <div class="section-title">Today — <span id="today-label"></span></div>
+  <div class="today-card">
+    <div class="today-header">
+      <span>Jamaat Times</span>
+      <span class="geo-badge" id="geo-btn" onclick="toggleGeo()">📍 Location Off</span>
+    </div>
+    <div id="today-prayers"></div>
+  </div>
+
+  <!-- History -->
+  <div class="history-wrap">
+    <div class="history-head" onclick="toggleHistory()">
+      📅 Prayer History <span id="history-toggle">▼ Show</span>
+    </div>
+    <div class="history-body" id="history-body"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer>Times from Masjid Adam timetable · Data saved locally on your device</footer>
+
+<script>
+// ─── Timetable Data ───────────────────────────────────────────────────────────
+// All times in HH:MM format (24h), Jamaat times only
+// Prayers: Fajr, Zuhr, Asr, Magrib, Esha
+const JULY_JAMAAT = {
+  1:  { Fajr:"04:20", Zuhr:"13:30", Asr:"20:30", Magrib:"21:47", Esha:"23:00" },
+  2:  { Fajr:"04:20", Zuhr:"13:30", Asr:"20:30", Magrib:"21:44", Esha:"23:00" },
+  3:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:43", Esha:"22:55" },
+  4:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:43", Esha:"22:55" },
+  5:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:42", Esha:"22:55" },
+  6:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:41", Esha:"22:55" },
+  7:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:41", Esha:"22:55" },
+  8:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:40", Esha:"22:55" },
+  9:  { Fajr:"04:25", Zuhr:"13:30", Asr:"20:30", Magrib:"21:39", Esha:"22:55" },
+  10: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:38", Esha:"22:50" },
+  11: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:37", Esha:"22:50" },
+  12: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:36", Esha:"22:50" },
+  13: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:35", Esha:"22:50" },
+  14: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:34", Esha:"22:50" },
+  15: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:33", Esha:"22:50" },
+  16: { Fajr:"04:30", Zuhr:"13:30", Asr:"20:30", Magrib:"21:32", Esha:"22:50" },
+  17: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:31", Esha:"22:45" },
+  18: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:30", Esha:"22:45" },
+  19: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:28", Esha:"22:45" },
+  20: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:27", Esha:"22:45" },
+  21: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:26", Esha:"22:45" },
+  22: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:24", Esha:"22:45" },
+  23: { Fajr:"04:40", Zuhr:"13:30", Asr:"20:15", Magrib:"21:23", Esha:"22:45" },
+  24: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:21", Esha:"22:35" },
+  25: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:20", Esha:"22:35" },
+  26: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:18", Esha:"22:35" },
+  27: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:16", Esha:"22:35" },
+  28: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:15", Esha:"22:35" },
+  29: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:13", Esha:"22:35" },
+  30: { Fajr:"04:50", Zuhr:"13:30", Asr:"20:00", Magrib:"21:11", Esha:"22:35" },
+  31: { Fajr:"05:00", Zuhr:"13:30", Asr:"19:45", Magrib:"21:10", Esha:"22:20" },
+};
+
+const PRAYERS = ["Fajr","Zuhr","Asr","Magrib","Esha"];
+const PRAYER_ICONS = { Fajr:"🌙", Zuhr:"☀️", Asr:"🌤️", Magrib:"🌅", Esha:"🌙" };
+
+// Masjid Adam coordinates (2 Broadgate, Bolton BL3 4PZ)
+const MASJID_LAT = 53.5755;
+const MASJID_LNG = -2.4275;
+const MASJID_RADIUS_METERS = 5;
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+let prayerLog = JSON.parse(localStorage.getItem("salah_log_july2026") || "{}");
+// prayerLog[day][prayer] = "prayed" | "auto" | "missed" | null
+let geoEnabled = localStorage.getItem("salah_geo") === "true";
+let geoWatcher = null;
+let userLat = null, userLng = null;
+
+function saveLog() {
+  localStorage.setItem("salah_log_july2026", JSON.stringify(prayerLog));
+}
+
+// ─── Time helpers ───────────────────────────────────────────────────────────────
+function parseTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+function nowMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+function todayDate() { return new Date(); }
+function todayDay() { return todayDate().getDate(); }
+function todayMonth() { return todayDate().getMonth(); } // 0-indexed, 6 = July
+
+// Check if a given day/prayer time has already passed
+function hasPassed(day, prayerName) {
+  const today = todayDay();
+  const month = todayMonth();
+  if (month > 6) return true;  // past July
+  if (month < 6) return false; // before July
+  if (day < today) return true;
+  if (day > today) return false;
+  // same day
+  const times = JULY_JAMAAT[day];
+  if (!times) return false;
+  return nowMinutes() > parseTime(times[prayerName]) + 30;
+}
+
+function isCurrentPrayer(day, prayerName) {
+  const today = todayDay();
+  const month = todayMonth();
+  if (month !== 6 || day !== today) return false;
+  const times = JULY_JAMAAT[day];
+  if (!times) return false;
+  const now = nowMinutes();
+  const start = parseTime(times[prayerName]);
+  return now >= start && now <= start + 30;
+}
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
+function calcStats() {
+  const today = todayDay();
+  const month = todayMonth();
+
+  let totalOccurred = 0;
+  let totalPrayed = 0;
+
+  // Only count from the start of July up to and including now
+  for (let day = 1; day <= 31; day++) {
+    const times = JULY_JAMAAT[day];
+    if (!times) continue;
+
+    for (const p of PRAYERS) {
+      const passed = hasPassed(day, p) || (month === 6 && day === today && isCurrentPrayer(day, p));
+      if (!passed && !(month === 6 && day === today)) continue;
+      if (month > 6 || (month === 6 && day <= today)) {
+        if (hasPassed(day, p) || (month === 6 && day === today && isCurrentPrayer(day, p))) {
+          totalOccurred++;
+          const status = prayerLog[day]?.[p];
+          if (status === "prayed" || status === "auto") totalPrayed++;
+        }
+      }
+    }
+  }
+
+  const totalQadha = totalOccurred - totalPrayed;
+  return { totalOccurred, totalPrayed, totalQadha };
+}
+
+function renderDashboard() {
+  const { totalOccurred, totalPrayed, totalQadha } = calcStats();
+  const pct = totalOccurred > 0 ? Math.round((totalPrayed / totalOccurred) * 100) : 0;
+  document.getElementById("stat-prayed").textContent = totalPrayed;
+  document.getElementById("stat-qadha").textContent = totalQadha;
+  document.getElementById("stat-pct").textContent = pct + "%";
+  document.getElementById("bar-label-right").textContent = `${totalPrayed} / ${totalOccurred} prayers`;
+  document.getElementById("progress-bar").style.width = pct + "%";
+}
+
+// ─── Today's prayers ───────────────────────────────────────────────────────────
+function renderToday() {
+  const day = todayDay();
+  const month = todayMonth();
+  const times = month === 6 ? JULY_JAMAAT[day] : null;
+
+  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const d = todayDate();
+  document.getElementById("today-label").textContent =
+    `${dayNames[d.getDay()]} ${d.getDate()} ${monthNames[d.getMonth()]} 2026`;
+
+  const container = document.getElementById("today-prayers");
+  container.innerHTML = "";
+
+  if (!times) {
+    container.innerHTML = `<div class="prayer-row"><span style="color:var(--muted);font-size:0.85rem">No timetable data for today</span></div>`;
+    return;
+  }
+
+  for (const p of PRAYERS) {
+    const status = prayerLog[day]?.[p] || null;
+    const isCurrent = isCurrentPrayer(day, p);
+    const passed = hasPassed(day, p);
+    const timeStr = times[p].replace(/^0/, "").replace(":",":");
+
+    const row = document.createElement("div");
+    row.className = "prayer-row" + (isCurrent ? " current-prayer" : "");
+
+    let btnClass = "tick-btn";
+    let btnContent = "○";
+    if (status === "prayed") { btnClass += " prayed"; btnContent = "✓"; }
+    else if (status === "auto") { btnClass += " auto"; btnContent = "✓"; }
+
+    row.innerHTML = `
+      <span style="font-size:1.2rem">${PRAYER_ICONS[p]}</span>
+      <span class="prayer-name">${p}</span>
+      <div class="prayer-time">
+        ${timeStr}
+        <span class="time-label">Jamaat</span>
+      </div>
+      <button class="${btnClass}" onclick="togglePrayer(${day},'${p}')" title="${status === 'auto' ? 'Auto-detected at masjid' : ''}">
+        ${btnContent}
+      </button>
+    `;
+    container.appendChild(row);
+  }
+}
+
+// ─── Toggle prayer manually ─────────────────────────────────────────────────────
+function togglePrayer(day, prayer) {
+  if (!prayerLog[day]) prayerLog[day] = {};
+  const current = prayerLog[day][prayer];
+  if (current === "prayed" || current === "auto") {
+    prayerLog[day][prayer] = null;
+    showToast(`${prayer} unmarked`);
+  } else {
+    prayerLog[day][prayer] = "prayed";
+    showToast(`${prayer} ✓ marked as prayed`);
+  }
+  saveLog();
+  renderAll();
+}
+
+// ─── History ───────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const body = document.getElementById("history-body");
+  if (!body.classList.contains("open")) return;
+
+  const today = todayDay();
+  const month = todayMonth();
+  body.innerHTML = "";
+
+  const days = [];
+  for (let d = 1; d <= 31; d++) {
+    if (month === 6 && d > today) break;
+    if (month < 6) break;
+    days.push(d);
+  }
+  if (days.length === 0) {
+    body.innerHTML = `<div class="history-day" style="color:var(--muted);font-size:0.8rem">No history yet — prayers will appear here.</div>`;
+    return;
+  }
+
+  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  for (const d of days.slice().reverse()) {
+    const times = JULY_JAMAAT[d];
+    if (!times) continue;
+    const dateObj = new Date(2026, 6, d);
+    const dayName = dayNames[dateObj.getDay()];
+
+    let prayed = 0, total = 0;
+    const pills = PRAYERS.map(p => {
+      const passed = hasPassed(d, p);
+      if (!passed && d === today) return null;
+      if (!passed && d < today) { total++; return `<span class="pill missed">${p}</span>`; }
+      total++;
+      const s = prayerLog[d]?.[p];
+      if (s === "prayed") { prayed++; return `<span class="pill prayed">${p}</span>`; }
+      if (s === "auto") { prayed++; return `<span class="pill auto">${p} 📍</span>`; }
+      return `<span class="pill missed">${p}</span>`;
+    }).filter(Boolean);
+
+    const div = document.createElement("div");
+    div.className = "history-day";
+    div.innerHTML = `
+      <div class="history-day-header">
+        <span class="history-day-date">${dayName} ${d} Jul</span>
+        <span class="history-day-score">${prayed}/${total}</span>
+      </div>
+      <div class="history-pills">${pills.join("")}</div>
+    `;
+    body.appendChild(div);
+  }
+}
+
+function toggleHistory() {
+  const body = document.getElementById("history-body");
+  const toggle = document.getElementById("history-toggle");
+  body.classList.toggle("open");
+  toggle.textContent = body.classList.contains("open") ? "▲ Hide" : "▼ Show";
+  renderHistory();
+}
+
+// ─── Geolocation ───────────────────────────────────────────────────────────────
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function checkAutoTick(lat, lng) {
+  const dist = haversineMeters(lat, lng, MASJID_LAT, MASJID_LNG);
+  if (dist > MASJID_RADIUS_METERS) return;
+
+  const day = todayDay();
+  const month = todayMonth();
+  if (month !== 6) return;
+  const times = JULY_JAMAAT[day];
+  if (!times) return;
+
+  const now = nowMinutes();
+  for (const p of PRAYERS) {
+    const pTime = parseTime(times[p]);
+    // Within 15 mins of Jamaat time
+    if (Math.abs(now - pTime) <= 15) {
+      if (!prayerLog[day]) prayerLog[day] = {};
+      if (!prayerLog[day][p]) {
+        prayerLog[day][p] = "auto";
+        saveLog();
+        showToast(`📍 ${p} auto-ticked — you're at the masjid!`);
+        renderAll();
+      }
+    }
+  }
+}
+
+function toggleGeo() {
+  if (!geoEnabled) {
+    if (!navigator.geolocation) {
+      showToast("Geolocation not supported on this device");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(pos => {
+      geoEnabled = true;
+      localStorage.setItem("salah_geo", "true");
+      updateGeoBtn();
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      checkAutoTick(userLat, userLng);
+      startGeoWatch();
+    }, () => showToast("Location permission denied"));
+  } else {
+    geoEnabled = false;
+    localStorage.setItem("salah_geo", "false");
+    if (geoWatcher) navigator.geolocation.clearWatch(geoWatcher);
+    geoWatcher = null;
+    updateGeoBtn();
+    showToast("Location tracking off");
+  }
+}
+
+function startGeoWatch() {
+  if (geoWatcher) return;
+  geoWatcher = navigator.geolocation.watchPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    checkAutoTick(userLat, userLng);
+  }, null, { enableHighAccuracy: true, maximumAge: 60000 });
+}
+
+function updateGeoBtn() {
+  const btn = document.getElementById("geo-btn");
+  if (geoEnabled) {
+    btn.textContent = "📍 Location On";
+    btn.classList.add("active");
+  } else {
+    btn.textContent = "📍 Location Off";
+    btn.classList.remove("active");
+  }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderDashboard();
+  renderToday();
+  renderHistory();
+}
+
+renderAll();
+updateGeoBtn();
+
+if (geoEnabled && navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    startGeoWatch();
+  });
+}
+
+// Refresh every minute to update "current prayer" highlighting
+setInterval(renderAll, 60000);
+</script>
+</body>
+</html>
