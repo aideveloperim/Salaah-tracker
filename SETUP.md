@@ -59,8 +59,10 @@ GitHub Pages will update automatically within 60 seconds.
 
 | File | Purpose |
 |------|---------|
-| `index.html` | The full app — prayers, dashboard, history |
+| `index.html` | The full app — Today / History / Qadha tabs |
 | `SETUP.md` | This file |
+| `.gitignore` | Excludes the local Netlify folder |
+| `JULY2026.webp` | Source timetable image for July 2026 |
 
 ---
 
@@ -89,3 +91,6 @@ If you push a change, wait well past 60 seconds, and the live site still shows t
 - GitHub Pages enabled on `main` branch ✓
 - App loading on iPhone ✓
 - Added to iPhone Home Screen ✓
+- Tabbed layout live: **Today** (dashboard + Jamaat times), **History** (calendar view, tap a date to see/edit that day), **Qadha** (lifetime backlog counter, separate from the daily tracker) ✓
+- Qadha logic: a prayer only counts as Qadha while still outstanding — ticking it off moves it to Prayed and it drops out of the Qadha count ✓
+- All working files (`index.html`, `SETUP.md`, `.gitignore`, `JULY2026.webp`) committed and pushed ✓
